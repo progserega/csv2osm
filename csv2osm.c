@@ -1,4 +1,6 @@
 #include <stdio.h>  
+#include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -63,6 +65,7 @@ struct pointList *get_nearest(struct pointList *list, struct pointList *element)
 struct pointList *find_lightest_number_name(struct pointList *list);
 wchar_t* skip_zero(wchar_t*str);
 int wc_cmp(wchar_t *s1, wchar_t *s2);
+int process_command_options(int argc, char **argv);
 
 // Список имён линий (станций):
 struct nameList *lineNameList=0;
@@ -81,7 +84,13 @@ wchar_t def_operator[]=L"ОАО ДРСК";
 wchar_t def_source[]=L"survey";
 wchar_t def_source_note[]=L"импортировано с помощью gpx2ocs->ocs2osm на основании gpx-точек обходов линий"; 
 
-int main()  
+
+char *in_file_name=NULL;
+char *out_file_name=NULL;
+FILE *in_file=NULL;
+FILE *out_file=NULL;
+
+int main(int argc, char **argv)
 {  
 	wchar_t buf[BUFSIZ];
     wchar_t *pch;
@@ -97,8 +106,39 @@ int main()
 	int error=0;
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC,"C");
+	if(process_command_options(argc,argv)!=0)
+	{
+		fprintf(stderr, "\nUse -h for help.\nexit!\n");
+		return -1;
+	}
+	if(in_file_name==NULL)
+	{
+		in_file=stdin;
+	}
+	else
+	{
+		in_file=fopen(in_file_name,"r");
+		if(in_file==NULL)
+		{
+			fprintf(stderr, "\nerror open file %s (%s)",in_file_name,strerror(errno));
+			return -1;
+		}
+	}
+	if(out_file_name==NULL)
+	{
+		out_file=stdout;
+		if(out_file==NULL)
+		{
+			fprintf(stderr, "\nerror open file %s (%s)",out_file_name,strerror(errno));
+			return -1;
+		}
+	}
+	else
+	{
+		out_file=fopen(out_file_name,"w");
+	}
 	do{
-		error=fgetws(buf, BUFSIZ, stdin);
+		error=fgetws(buf, BUFSIZ, in_file);
 #ifdef DEBUG
 		//fprintf(stderr,"DEBUG (%s:%i): line_name=%s, poi_name=%s, lat=%Lf, lon=%Lf, ele=%f\n", __FILE__,__LINE__,line_name,poi_name,lat,lon,ele );
 #endif
@@ -199,8 +239,12 @@ int main()
 			return -1;
 		}
 	}while(error!=NULL);
+	if(in_file_name!=NULL)
+		fclose(in_file);
 	// Выводим OSM:
 	print_osm();
+	if(out_file_name!=NULL)
+		fclose(out_file);
 	// очистка памяти:
 	free_posList(posList);
 	free_nameList(lineNameList);
@@ -359,8 +403,8 @@ int print_osm(void)
 {
 		struct pointList *element=0, *tmp=0, *first_element=0;
 		// вывод шапки OSM xml:
-		fwprintf(stdout,L"<?xml version='1.0' encoding='UTF-8'?>\n<osm version='0.6' upload='true' generator='JOSM'>\n");
-		fwprintf(stdout,L"<bounds minlat='39.21' minlon='128.24' maxlat='53.02' maxlon='142.44' origin='OpenStreetMap server' />\n");
+		fwprintf(out_file,L"<?xml version='1.0' encoding='UTF-8'?>\n<osm version='0.6' upload='true' generator='JOSM'>\n");
+		fwprintf(out_file,L"<bounds minlat='39.21' minlon='128.24' maxlat='53.02' maxlon='142.44' origin='OpenStreetMap server' />\n");
 
 		// Печатаем все точки:
 		posList_last=&posList;
@@ -370,46 +414,46 @@ int print_osm(void)
 			while(element)
 			{
 				// Печатаем точки:
-				fwprintf(stdout,L"\
+				fwprintf(out_file,L"\
   <node id='%i' action='modify' visible='true' lat='%.8Lf' lon='%.8Lf' >\n",element->id,element->lat,element->lon);
 				if((*posList_last)->poi_type==TYPE_POWER_LINE)
 				{
 					// Опоры Высоковольтныч линий
-					fwprintf(stdout,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
-					fwprintf(stdout,L"    <tag k='operator' v='%ls' />\n",def_operator);
-					fwprintf(stdout,L"    <tag k='power' v='tower' />\n");
-					fwprintf(stdout,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
+					fwprintf(out_file,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
+					fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+					fwprintf(out_file,L"    <tag k='power' v='tower' />\n");
+					fwprintf(out_file,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
 				}
 				else if((*posList_last)->poi_type==TYPE_POWER_LINE_04)
 				{
 					// Столбы низковольтных линий
-					fwprintf(stdout,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
-					fwprintf(stdout,L"    <tag k='operator' v='%ls' />\n",def_operator);
-					fwprintf(stdout,L"    <tag k='power' v='pole' />\n");
-					fwprintf(stdout,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
+					fwprintf(out_file,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
+					fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+					fwprintf(out_file,L"    <tag k='power' v='pole' />\n");
+					fwprintf(out_file,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
 				}
 				else if((*posList_last)->poi_type==TYPE_POWER_SUB_STATION)
 				{
-					fwprintf(stdout,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
-					fwprintf(stdout,L"    <tag k='operator' v='%ls' />\n",def_operator);
-					fwprintf(stdout,L"    <tag k='power' v='sub_station' />\n");
+					fwprintf(out_file,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
+					fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+					fwprintf(out_file,L"    <tag k='power' v='sub_station' />\n");
 					// На ТП есть только ref, а "общее имя им не нужно"
-					//fwprintf(stdout,L"    <tag k='name' v='%ls' />\n",element->line_name->name);
+					//fwprintf(out_file,L"    <tag k='name' v='%ls' />\n",element->line_name->name);
 				}
 				else if((*posList_last)->poi_type==TYPE_POWER_STATION)
 				{
 					// Точкам полигона подстанции не печатаем теги подстанции, только тег 'note':
-					//fwprintf(stdout,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
-					//fwprintf(stdout,L"    <tag k='operator' v='%ls' />\n",def_operator);
-					//fwprintf(stdout,L"    <tag k='power' v='station' />\n");
-					fwprintf(stdout,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
+					//fwprintf(out_file,L"    <tag k='ref' v='%ls' />\n",element->poi_name);
+					//fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+					//fwprintf(out_file,L"    <tag k='power' v='station' />\n");
+					fwprintf(out_file,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
 				}
 				// печатаем остальные теги точек:
-				fwprintf(stdout,L"    <tag k='ele' v='%f' />\n",element->ele);
-				fwprintf(stdout,L"    <tag k='source' v='%ls' />\n",def_source);
-				fwprintf(stdout,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
+				fwprintf(out_file,L"    <tag k='ele' v='%f' />\n",element->ele);
+				fwprintf(out_file,L"    <tag k='source' v='%ls' />\n",def_source);
+				fwprintf(out_file,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
 
-				fwprintf(stdout,L"    </node>\n");
+				fwprintf(out_file,L"    </node>\n");
 
 
 				element=element->next_element;
@@ -431,49 +475,49 @@ int print_osm(void)
 							// проверяем, будут ли ещё точки в этой линии - если будут - рисуем линию:
 							if(find_nearest(posList_cur,element))
 							{
-									fwprintf(stdout,L"	<way id='%i' action='modify' visible='true'>\n",cur_global_id);
+									fwprintf(out_file,L"	<way id='%i' action='modify' visible='true'>\n",cur_global_id);
 									cur_global_id--;
 									first_element=element;
 									while(element)
 									{
 										// Добавляем точки в линию:
-										fwprintf(stdout,L"<nd ref='%i' />\n",element->id);
+										fwprintf(out_file,L"<nd ref='%i' />\n",element->id);
 										element=get_nearest(posList_cur,element);
 									}
 									// если полигон, то нужно "замыкать":
 									if(posList_cur->poi_type==TYPE_POWER_STATION)
 									{
-										fwprintf(stdout,L"<nd ref='%i' />\n",first_element->id);
+										fwprintf(out_file,L"<nd ref='%i' />\n",first_element->id);
 									}
 									// печатаем остальные теги точек:
 									if(posList_cur->poi_type==TYPE_POWER_STATION)
 									{
-										fwprintf(stdout,L"    <tag k='power' v='station' />\n");
+										fwprintf(out_file,L"    <tag k='power' v='station' />\n");
 										if(posList_cur->voltage!=-1)
-											fwprintf(stdout,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
+											fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
 									}
 									else if(posList_cur->poi_type==TYPE_POWER_LINE)
 									{
-										fwprintf(stdout,L"    <tag k='power' v='line' />\n");
+										fwprintf(out_file,L"    <tag k='power' v='line' />\n");
 										if(posList_cur->voltage!=-1)
-											fwprintf(stdout,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
+											fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
 									}
 									else if(posList_cur->poi_type==TYPE_POWER_LINE_04)
 									{
-										fwprintf(stdout,L"    <tag k='power' v='minor_line' />\n");
-										fwprintf(stdout,L"    <tag k='voltage' v='400' />\n");
+										fwprintf(out_file,L"    <tag k='power' v='minor_line' />\n");
+										fwprintf(out_file,L"    <tag k='voltage' v='400' />\n");
 									}
 									else
 									{
 										// по умолчанию - линия:
-										fwprintf(stdout,L"    <tag k='power' v='line' />\n");
+										fwprintf(out_file,L"    <tag k='power' v='line' />\n");
 									}
-									fwprintf(stdout,L"    <tag k='name' v='%ls' />\n",posList_cur->line_name->name);
-									fwprintf(stdout,L"    <tag k='operator' v='%ls' />\n",def_operator);
-									fwprintf(stdout,L"    <tag k='source' v='%ls' />\n",def_source);
-									fwprintf(stdout,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
+									fwprintf(out_file,L"    <tag k='name' v='%ls' />\n",posList_cur->line_name->name);
+									fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+									fwprintf(out_file,L"    <tag k='source' v='%ls' />\n",def_source);
+									fwprintf(out_file,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
 
-									fwprintf(stdout,L"    </way>\n");
+									fwprintf(out_file,L"    </way>\n");
 							}
 							else
 							{
@@ -504,8 +548,8 @@ int print_osm(void)
 		}
 
 		// завершаем OSM xml:
-		fwprintf(stdout,L"</osm>\n");
-		fflush(stdout);
+		fwprintf(out_file,L"</osm>\n");
+		fflush(out_file);
 
 
 		return (0);  
@@ -660,4 +704,47 @@ int wc_cmp(wchar_t *s1, wchar_t *s2)
 		}
 	}
 	return not_equal;
+}
+
+int process_command_options(int argc, char **argv)
+{
+	int aflag = 0;
+	int bflag = 0;
+	char *cvalue = NULL;
+	int index;
+	int c;
+	opterr = 0;
+	while ((c = getopt (argc, argv, "hi:o:")) != -1)
+	{
+		switch (c)
+		{
+				case 'i':
+						in_file_name=optarg;
+						break;
+				case 'o':
+						out_file_name=optarg;
+						break;
+				case 'h':
+						// help
+						fprintf (stderr, "This is convertor from csv to osm format.\n\
+Use: \
+%s -i input.csv -o out.osm \n\
+ \n\
+options: \n\
+	-i file - input file with csv \n\
+	-o file - output file with osm, where programm save result \n\
+	-h - this help\n\
+\nIf input or output files not setted - programm used stdin or/and stdout", argv[0]);
+						return 1;
+				case '?':
+						if (isprint (optopt))
+								fprintf (stderr, "Unknown option: '-%c'.\n", optopt);
+						else
+								fprintf (stderr, "Unknown option character: '\\x%x'.\n", optopt);
+						return 1;
+				default:
+						return 1;
+		}
+	}
+	return 0;
 }
