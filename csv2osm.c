@@ -21,7 +21,12 @@ enum{
 	TYPE_POWER_LINE, // линия эл. передачи
 	TYPE_POWER_LINE_04 // низковольтная линия эл. передачи
 };
+enum{
+	POI_INDEX_NUM,
+	POI_INDEX_SYMBOL
+};
 #define POI_TYPE int
+#define INDEX_TYPE int
 
 
 #ifndef bool
@@ -39,7 +44,21 @@ struct pointList
 	POI_TYPE poi_type;
 	struct nameList *line_name;
 	int voltage;
+	// имя poi
 	wchar_t *poi_name;
+	/* разбиваем имя poi на две части вида: prefix+index, 
+	Например, для poi с именем 3/2/11:
+	prefix=3/2/
+	индекс=11
+	Или для poi с именем 2а:
+	prefix=2
+	индекс=а
+	это нужно для ответвлений линий с именами опор вида: 2а, 2б,2в и т.п.
+*/
+	// часть имени poi 
+	wchar_t *poi_name_prefix;
+	int poi_name_prefix_size;
+	INDEX_TYPE poi_index_type;
 	long double lat;
 	long double lon;
 	float ele;
@@ -460,8 +479,8 @@ int print_osm(void)
 			}
 			posList_last=&((*posList_last)->next_list);
 		}
-		// печатаем пути для подстанций и линий (не для ТП)
-		if(posList->poi_type==TYPE_POWER_LINE||posList->poi_type==TYPE_POWER_STATION||posList->poi_type==TYPE_POWER_LINE_04)
+		// печатаем пути для подстанций
+		if(posList->poi_type==TYPE_POWER_STATION)
 		{
 				posList_cur=posList;
 				// пока есть неиспользуемые точки:
@@ -547,13 +566,86 @@ int print_osm(void)
 				}
 		}
 
+		// печатаем пути для линий
+		if(posList->poi_type==TYPE_POWER_LINE||posList->poi_type==TYPE_POWER_LINE_04)
+		{
+				int prefix_min=0;
+				int prefix_max=0;
+				// Предвариетльная обработка точек - анализ имён:
+				prepare_line_list(posList);
+				// в цикле от длинны самого короткого префикса до самого длинного префикса
+				for(prefix_size=prefix_min;prefix_size<=prefix_max;prefix_size++)
+				{
+						// пока есть неиспользуемые точки:
+						posList_cur=posList;
+						while(posList_cur)
+						{
+							// ищем точку с заданной длинной префикса:
+							// TODO:
+							posList_cur=posList_cur->next_list;
+						}
+				}
+		}
+
 		// завершаем OSM xml:
 		fwprintf(out_file,L"</osm>\n");
 		fflush(out_file);
 
 
 		return (0);  
-}  
+}
+
+int prepare_line_list(struct pointList *list)
+{
+	int index=0;
+	int len=0;
+	while(list)
+	{
+		// анализируем последний символ имени poi:
+		len=wcslen(list->poi_name);
+		if(len<1)
+		{
+			fwprintf(stderr,L"%s:%i: empty poi_name!\n",__FILE__,__LINE__);
+			return -1;
+		}
+		if(iswalnum(*(list->poi_name+len-1)))
+		{
+			// число
+			list->poi_index_type=POI_INDEX_NUM;
+			// получаем префикс:
+			// ищем первый нецифровой символ с конца:
+			for(index=len-1;index>=0;index--)
+			{
+				if(!iswalnum(*(list->poi_name+index)))
+				{
+					// не число
+					break;
+				}
+			}
+			if(index)
+			{
+				// нашли префикс, добавляем в элемент:
+				*len_dst=(count+1)*sizeof(wchar_t);
+				*dst_ptr=(wchar_t*)malloc(*len_dst);
+				if(!*dst_ptr)
+				{
+					fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,*len_dst);
+					return NULL;
+				}
+				wcpncpy(*dst_ptr,src_str,count);
+				*(*dst_ptr+count)=L'\0';
+			}
+		}
+		else
+		{
+			// не число
+			list->poi_index_type=POI_INDEX_SYMBOL;
+		}
+
+		list=list->next_list;
+	}
+	return 0;
+}
 
 struct pointList *get_nearest(struct pointList *list, struct pointList *element)
 {
