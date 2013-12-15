@@ -622,26 +622,52 @@ int prepare_line_list(struct pointList *list)
 					break;
 				}
 			}
-			if(index)
+			if(index>=0)
 			{
 				// нашли префикс, добавляем в элемент:
-				*len_dst=(count+1)*sizeof(wchar_t);
-				*dst_ptr=(wchar_t*)malloc(*len_dst);
-				if(!*dst_ptr)
+				list->poi_name_prefix=(wchar_t*)malloc(
+					(index+2)*sizeof(wchar_t)
+					);
+				if(!list->poi_name_prefix)
 				{
-					fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,*len_dst);
-					return NULL;
+					fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(index+2)*sizeof(wchar_t) );
+					return -1;
 				}
-				wcpncpy(*dst_ptr,src_str,count);
-				*(*dst_ptr+count)=L'\0';
+				list->poi_name_prefix_size=index;
+				wcpncpy(list->poi_name_prefix,list->poi_name,index);
+				*(*list->poi_name_prefix+index+1)=L'\0';
 			}
 		}
 		else
 		{
 			// не число
 			list->poi_index_type=POI_INDEX_SYMBOL;
+			// получаем префикс:
+			// ищем первый нецифровой символ с конца:
+			for(index=len-1;index>=0;index--)
+			{
+				if(iswalnum(*(list->poi_name+index)))
+				{
+					// число
+					break;
+				}
+			}
+			if(index>=0)
+			{
+				// нашли префикс, добавляем в элемент:
+				list->poi_name_prefix=(wchar_t*)malloc(
+					(index+2)*sizeof(wchar_t)
+					);
+				if(!list->poi_name_prefix)
+				{
+					fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(index+2)*sizeof(wchar_t) );
+					return -1;
+				}
+				list->poi_name_prefix_size=index;
+				wcpncpy(list->poi_name_prefix,list->poi_name,index);
+				*(*list->poi_name_prefix+index+1)=L'\0';
+			}
 		}
-
 		list=list->next_list;
 	}
 	return 0;
