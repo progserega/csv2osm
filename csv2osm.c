@@ -428,11 +428,6 @@ void free_nameList(struct nameList *list)
 int print_osm(void)
 {
 		struct pointList *element=0, *tmp=0, *first_element=0;
-		wchar_t *prefix=0;
-		int prefix_size=0;
-		wchar_t *tmp_name=0;
-		wchar_t prefix_as_name=0;
-		INDEX_TYPE index_type=0;
 		// вывод шапки OSM xml:
 		fwprintf(out_file,L"<?xml version='1.0' encoding='UTF-8'?>\n<osm version='0.6' upload='true' generator='JOSM'>\n");
 		fwprintf(out_file,L"<bounds minlat='39.21' minlon='128.24' maxlat='53.02' maxlon='142.44' origin='OpenStreetMap server' />\n");
@@ -512,13 +507,13 @@ int print_osm(void)
 									while(element)
 									{
 										// Добавляем точки в линию:
-										fwprintf(out_file,L"<nd ref='%i' />\n",element->id);
+										fwprintf(out_file,L"        <nd ref='%i' />\n",element->id);
 										element=get_nearest(posList_cur,element);
 									}
 									// если полигон, то нужно "замыкать":
 									if(posList_cur->poi_type==TYPE_POWER_STATION)
 									{
-										fwprintf(out_file,L"<nd ref='%i' />\n",first_element->id);
+										fwprintf(out_file,L"        <nd ref='%i' />\n",first_element->id);
 									}
 									// печатаем остальные теги точек:
 									if(posList_cur->poi_type==TYPE_POWER_STATION)
@@ -562,12 +557,12 @@ int print_osm(void)
 								if(!element->link&&!element->first_in_line&&!element->last_in_line)
 								{
 									// найден неиспользованный элемент
-		#ifdef DEBUG
+#ifdef DEBUG
 									fwprintf(stderr,L"%s:%i: найден неиспользуемый элемент.\n\
-		Линия: %Ls\n\
-		poi_name: %Ls\n\
-		id: %i \n",__FILE__,__LINE__,element->line_name->name,element->poi_name,element->id);
-		#endif
+Линия: %Ls\n\
+poi_name: %Ls\n\
+id: %i \n",__FILE__,__LINE__,element->line_name->name,element->poi_name,element->id);
+#endif
 									break;
 								}
 								element=element->next_element;
@@ -581,111 +576,17 @@ int print_osm(void)
 		// печатаем пути для линий
 		if(posList->poi_type==TYPE_POWER_LINE||posList->poi_type==TYPE_POWER_LINE_04)
 		{
-				// Предвариетльная обработка точек - анализ имён:
-				prepare_line_list(posList);
-				// в цикле от длинны самого короткого префикса до самого длинного префикса
-				for(prefix_size=0;prefix_size<=prefix_size_max;prefix_size++)
+#ifdef DEBUG
+				fwprintf(stderr,L"%s:%i: Начинаем рисование линий\n",__FILE__,__LINE__);
+#endif
+				// последовательно печатаем все линии:
+				posList_cur=posList;
+				while(posList_cur)
 				{
-						// пока есть неиспользуемые точки:
-						posList_cur=posList;
-						while(posList_cur)
-						{
-							// ищем точку с заданной длинной префикса:
-							if(!posList_cur->link && posList_cur->poi_name_prefix_size==prefix_size)
-							{
-								prefix=posList_cur->poi_name_prefix;
-								index_type=posList_cur->poi_index_type;
-								// рисуем линию с этим префиксом:
-								fwprintf(out_file,L"	<way id='%i' action='modify' visible='true'>\n",cur_global_id);
-								cur_global_id--;
-								
-								// только для линий с префиксом:
-								if(prefix_size)
-								{
-									/* ищем начальную точку
-									 начальная точка - это опора с именем, равным префиксу.
-									*/
-									tmp_name=(wchar_t*)malloc(
-									(prefix_size)*sizeof(wchar_t)
-									);
-									if(!tmp_name)
-									{
-										fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(prefix_size)*sizeof(wchar_t) );
-										return -1;
-									}
-									wcpncpy(tmp_name,prefix,prefix_size);
-									if(	*(prefix+prefix_size-1)==L'/'||
-										*(prefix+prefix_size-1)==L'\\'
-									)
-									{
-										/* Если у префикса последний символ слэш,
-										то укорачиваем искомое имя на один символ
-										*/
-										*(tmp_name+prefix_size-1)=L'\0';
-									}
-									else
-										*(tmp_name+prefix_size)=L'\0';
-									/* ищем во всех опорах, включая обработанные */
-									element=posList;
-									while(element)
-									{
-										if(!wc_cmp(element->poi_name,tmp_name))
-										{
-											// если нашли, то добавляем в начало линии
-											fwprintf(out_file,L"<nd ref='%i' />\n",element->id);
-										}
-										element=element->next_list;
-									}
-									free(tmp_name);
-									tmp_name=0;
-								}
-								/* В цикле просматриваем все необработанные опоры
-								*/
-								element=posList;
-								while(element)
-								{
-									/* ищем опоры с префиксом, равным заданному
-									*/
-									if(!element->link && element->poi_name_prefix_size==prefix_size)
-									{
-										if(element->poi_index_type==POI_INDEX_NUM)
-										{
-											tmp=find_lightest_number_name_with_prefix(element, prefix);
-											if(tmp==-1)
-											{
-												return -1;
-											}
-											else if(tmp)
-											{
-												// если нашли, то добавляем в линию
-												fwprintf(out_file,L"<nd ref='%i' />\n",tmp->id);
-												tmp->link=1;
-											}
-											else
-												break;
-										}
-										else if(element->poi_index_type==POI_INDEX_SYMBOL)
-										{
-											tmp=find_lightest_symbol_index_name_with_prefix(element, prefix);
-											if(tmp==-1)
-											{
-												return -1;
-											}
-											else if(tmp)
-											{
-												// если нашли, то добавляем в линию
-												fwprintf(out_file,L"<nd ref='%i' />\n",tmp->id);
-												tmp->link=1;
-											}
-											else
-												break;
-										}
-									}
-									element=element->next_element;
-								}
-							}
-							posList_cur=posList_cur->next_list;
-						}
+					// обрабатываем все линии 
+					if(print_line(posList_cur)==-1)
+						return -1;
+					posList_cur=posList_cur->next_list;
 				}
 		}
 
@@ -695,6 +596,166 @@ int print_osm(void)
 
 
 		return (0);  
+}
+int print_line(struct pointList *posList)
+{
+	int prefix_size=0;
+	/* Предвариетльная обработка точек:
+	 * формирование префиксов 
+	 * формирование индексов
+	 */
+	if(prepare_line_list(posList)==-1)
+	{
+		fwprintf(stderr,L"%s:%i: error prepare_line_list()\n",__FILE__,__LINE__);
+		return -1;
+	}
+	// в цикле от длинны самого короткого префикса до самого длинного префикса
+	for(prefix_size=0;prefix_size<=prefix_size_max;prefix_size++)
+	{
+		/* рисуем линии сначала с меньшими префиксами, затем
+		с большими префиксами
+		*/
+		if(print_line_by_prefix(posList,prefix_size)==-1)
+		{
+			fwprintf(stderr,L"%s:%i: error print_line_by_prefix()\n",__FILE__,__LINE__);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int print_line_by_prefix(struct pointList *list, int prefix_size)
+{
+		wchar_t *prefix=0;
+		INDEX_TYPE index_type=0;
+		// пока есть неиспользуемые точки:
+		while(list)
+		{
+			// ищем точку с заданной длинной префикса:
+			if(!list->link && list->poi_name_prefix_size==prefix_size)
+			{
+				prefix=list->poi_name_prefix;
+				index_type=list->poi_index_type;
+#ifdef DEBUG
+				fwprintf(stderr,L"%s:%i: Обрабатываем линию с префиксом: %ls, тип: %i\n",__FILE__,__LINE__,prefix, index_type);
+#endif
+				// рисуем линию с этим префиксом:
+				fwprintf(out_file,L"    <way id='%i' action='modify' visible='true'>\n",cur_global_id);
+				cur_global_id--;
+				
+				// ищем начальную точку:
+				// только для линий с префиксом:
+				if(prefix_size)
+				{
+					if(print_first_point(list, prefix, prefix_size)==-1)
+					{
+						fwprintf(stderr,L"%s:%i: error print_first_point()\n",__FILE__,__LINE__);
+						return -1;
+					}
+				}
+				/* печатаем остальные опоры в линии
+				*/
+				if(print_way_points(list, prefix, prefix_size)==-1)
+				{
+					fwprintf(stderr,L"%s:%i: error print_way_points()\n",__FILE__,__LINE__);
+					return -1;
+				}
+
+				fwprintf(out_file,L"    </way>\n");
+			}
+			list=list->next_element;
+		}
+	return 0;
+}
+
+int print_way_points(struct pointList *list, wchar_t *prefix, int prefix_size)
+{
+
+		struct pointList *tmp=0;
+		/* В цикле просматриваем все необработанные опоры
+		*/
+		while(list)
+		{
+			/* ищем опоры с префиксом, равным заданному
+			*/
+			if(!list->link && list->poi_name_prefix_size==prefix_size)
+			{
+				if(list->poi_index_type==POI_INDEX_NUM)
+				{
+					tmp=find_lightest_number_name_with_prefix(list, prefix);
+					if(tmp==-1)
+					{
+						return -1;
+					}
+					else if(tmp)
+					{
+						// если нашли, то добавляем в линию
+						fwprintf(out_file,L"        <nd ref='%i' />\n",tmp->id);
+						tmp->link=1;
+					}
+					else
+						break;
+				}
+				else if(list->poi_index_type==POI_INDEX_SYMBOL)
+				{
+					tmp=find_lightest_symbol_index_name_with_prefix(list, prefix);
+					if(tmp==-1)
+					{
+						return -1;
+					}
+					else if(tmp)
+					{
+						// если нашли, то добавляем в линию
+						fwprintf(out_file,L"        <nd ref='%i' />\n",tmp->id);
+						tmp->link=1;
+					}
+					else
+						break;
+				}
+			}
+			list=list->next_list;
+		}
+		return 0;
+}
+
+int print_first_point(struct pointList *list, wchar_t *prefix, int prefix_size)
+{
+	wchar_t *tmp_name=0;
+	/* ищем начальную точку
+	 начальная точка - это опора с именем, равным префиксу.
+	*/
+	tmp_name=(wchar_t*)malloc(
+		(prefix_size)*sizeof(wchar_t)
+	);
+	if(!tmp_name)
+	{
+		fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(prefix_size)*sizeof(wchar_t) );
+		return -1;
+	}
+	wcpncpy(tmp_name,prefix,prefix_size);
+	if(	*(prefix+prefix_size-1)==L'/'||
+		*(prefix+prefix_size-1)==L'\\'
+	)
+	{
+		/* Если у префикса последний символ слэш,
+		то укорачиваем искомое имя на один символ
+		*/
+		*(tmp_name+prefix_size-1)=L'\0';
+	}
+	else
+		*(tmp_name+prefix_size)=L'\0';
+	/* ищем во всех опорах, включая обработанные */
+	while(list)
+	{
+		if(!wc_cmp(list->poi_name,tmp_name))
+		{
+			// если нашли, то добавляем в начало линии
+			fwprintf(out_file,L"        <nd ref='%i' />\n",list->id);
+		}
+		list=list->next_list;
+	}
+	free(tmp_name);
+	return 0;
 }
 
 int prepare_line_list(struct pointList *list)
@@ -740,8 +801,19 @@ int prepare_line_list(struct pointList *list)
 				}
 			}
 		}
-		if(index>=0)
+		if(fill_prefix_and_index(list,len,index)==-1)
 		{
+			fwprintf(stderr,L"%s:%i: ERROR fill_prefix_and_index()\n",__FILE__,__LINE__);
+			return -1;
+		}
+		list=list->next_element;
+	}
+	return 0;
+}
+int fill_prefix_and_index(struct pointList *list, int len, int index)
+{
+	if(index>=0)
+	{
 			// нашли префикс, добавляем в элемент:
 			list->poi_name_prefix=(wchar_t*)malloc(
 				(index+2)*sizeof(wchar_t)
@@ -751,26 +823,28 @@ int prepare_line_list(struct pointList *list)
 				fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(index+2)*sizeof(wchar_t) );
 				return -1;
 			}
-			list->poi_name_prefix_size=index;
-			wcpncpy(list->poi_name_prefix,list->poi_name,index);
+			list->poi_name_prefix_size=index+1;
+			wcpncpy(list->poi_name_prefix,list->poi_name,index+1);
 			*(list->poi_name_prefix+index+1)=L'\0';
 			if(prefix_size_max<index)prefix_size_max=index;
-			// добавляем индекс:
-			list->poi_name_index=(wchar_t*)malloc(
-				(len-index+1)*sizeof(wchar_t)
-				);
-			if(!list->poi_name_index)
-			{
-				fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(len-index+1)*sizeof(wchar_t) );
-				return -1;
-			}
-			list->poi_name_index_size=len-index-1;
-			wcpncpy(list->poi_name_index,list->poi_name+index+1,len-index-1);
-			*(list->poi_name_index+(len-index))=L'\0';
-		}
-
-		list=list->next_list;
 	}
+	else
+	{
+		// префикса не нашли, значит в индекс добавляем полное имя
+		index=0;
+	}
+	// добавляем индекс:
+	list->poi_name_index=(wchar_t*)malloc(
+		(len-index+1)*sizeof(wchar_t)
+		);
+	if(!list->poi_name_index)
+	{
+		fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,	(len-index+1)*sizeof(wchar_t) );
+		return -1;
+	}
+	list->poi_name_index_size=len-index-1;
+	wcpncpy(list->poi_name_index,list->poi_name+index+1,len-index-1);
+	*(list->poi_name_index+(len-index-1))=L'\0';
 	return 0;
 }
 
@@ -860,15 +934,35 @@ struct pointList *find_lightest_symbol_index_name_with_prefix(struct pointList *
 {
 	wchar_t *min_index=0;
 	int min_index_size=0;
+	int prefix_to_find_len=0;
+	int equal_prefix=0;
 	struct pointList *cur_item=0;
 	int index=0;
+
+	if(prefix_to_find)
+			prefix_to_find_len=wcslen(prefix_to_find);
 
 	// Подыскиваем нужную точку:
 	while(list)
 	{
-		if(!list->link && list->poi_index_type==POI_INDEX_SYMBOL)
+		equal_prefix=0;
+		// проверяем, что опора не используется, тип индекса - цифровой, размеры префиксов равны
+		if(!list->link && list->poi_index_type==POI_INDEX_SYMBOL && prefix_to_find_len == list->poi_name_prefix_size)
 		{
-			if(!wc_cmp(list->poi_name_prefix,prefix_to_find))
+			if(list->poi_name_prefix!=0 && prefix_to_find!=0)
+			{
+				// не пустые префиксы
+				if(!wc_cmp(list->poi_name_prefix,prefix_to_find))
+				{
+					equal_prefix=1;
+				}
+			}
+			else
+			{
+				// оба пустые префикса (размеры равны нулю)
+				equal_prefix=1;
+			}
+			if(equal_prefix)
 			{
 				if(!min_index)
 				{
@@ -950,16 +1044,36 @@ struct pointList *find_lightest_symbol_index_name_with_prefix(struct pointList *
   */
 struct pointList *find_lightest_number_name_with_prefix(struct pointList *list, wchar_t *prefix_to_find)
 {
+	int prefix_to_find_len=0;
 	int cur_index=-1;
 	int min_index=-1;
+	int equal_prefix=0;
 	struct pointList *cur_item=0;
+
+	if(prefix_to_find)
+			prefix_to_find_len=wcslen(prefix_to_find);
 
 	// Подыскиваем нужную точку:
 	while(list)
 	{
-		if(!list->link && list->poi_index_type==POI_INDEX_NUM)
+		equal_prefix=0;
+		// проверяем, что опора не используется, тип индекса - цифровой, размеры префиксов равны
+		if(!list->link && list->poi_index_type==POI_INDEX_NUM && prefix_to_find_len == list->poi_name_prefix_size)
 		{
-			if(!wc_cmp(list->poi_name_prefix,prefix_to_find))
+			if(list->poi_name_prefix!=0 && prefix_to_find!=0)
+			{
+				// не пустые префиксы
+				if(!wc_cmp(list->poi_name_prefix,prefix_to_find))
+				{
+					equal_prefix=1;
+				}
+			}
+			else
+			{
+				// оба пустые префикса (размеры равны нулю)
+				equal_prefix=1;
+			}
+			if(equal_prefix)
 			{
 				swscanf(skip_zero(list->poi_name_index),L"%i",&cur_index);
 				// самый маленький (в числовом варианте), но больший, чем точка, от которой ведём
@@ -969,6 +1083,7 @@ struct pointList *find_lightest_number_name_with_prefix(struct pointList *list, 
 					cur_item=list;
 				}
 			}
+
 		}
 		list=list->next_element;
 	}
