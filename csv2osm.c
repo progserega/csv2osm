@@ -515,33 +515,12 @@ int print_osm(void)
 									{
 										fwprintf(out_file,L"        <nd ref='%i' />\n",first_element->id);
 									}
-									// печатаем остальные теги точек:
-									if(posList_cur->poi_type==TYPE_POWER_STATION)
+									// печатаем дополнительные теги:
+									if(print_way_tags(posList_cur)==-1)
 									{
-										fwprintf(out_file,L"    <tag k='power' v='station' />\n");
-										if(posList_cur->voltage!=-1)
-											fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
+											fwprintf(stderr,L"%s:%i: error print_way_tags()\n",__FILE__,__LINE__);
+											return -1;
 									}
-									else if(posList_cur->poi_type==TYPE_POWER_LINE)
-									{
-										fwprintf(out_file,L"    <tag k='power' v='line' />\n");
-										if(posList_cur->voltage!=-1)
-											fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",posList_cur->voltage);
-									}
-									else if(posList_cur->poi_type==TYPE_POWER_LINE_04)
-									{
-										fwprintf(out_file,L"    <tag k='power' v='minor_line' />\n");
-										fwprintf(out_file,L"    <tag k='voltage' v='400' />\n");
-									}
-									else
-									{
-										// по умолчанию - линия:
-										fwprintf(out_file,L"    <tag k='power' v='line' />\n");
-									}
-									fwprintf(out_file,L"    <tag k='name' v='%ls' />\n",posList_cur->line_name->name);
-									fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
-									fwprintf(out_file,L"    <tag k='source' v='%ls' />\n",def_source);
-									fwprintf(out_file,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
 
 									fwprintf(out_file,L"  </way>\n");
 							}
@@ -662,11 +641,47 @@ int print_line_by_prefix(struct pointList *list, int prefix_size)
 					fwprintf(stderr,L"%s:%i: error print_way_points()\n",__FILE__,__LINE__);
 					return -1;
 				}
+				if(print_way_tags(list)==-1)
+				{
+					fwprintf(stderr,L"%s:%i: error print_way_tags()\n",__FILE__,__LINE__);
+					return -1;
+				}
 
 				fwprintf(out_file,L"  </way>\n");
 			}
 			list=list->next_element;
 		}
+	return 0;
+}
+int print_way_tags(struct pointList *list)
+{
+	// печатаем остальные теги точек:
+	if(list->poi_type==TYPE_POWER_STATION)
+	{
+		fwprintf(out_file,L"    <tag k='power' v='station' />\n");
+		if(list->voltage!=-1)
+			fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",list->voltage);
+	}
+	else if(list->poi_type==TYPE_POWER_LINE)
+	{
+		fwprintf(out_file,L"    <tag k='power' v='line' />\n");
+		if(list->voltage!=-1)
+			fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",list->voltage);
+	}
+	else if(list->poi_type==TYPE_POWER_LINE_04)
+	{
+		fwprintf(out_file,L"    <tag k='power' v='minor_line' />\n");
+		fwprintf(out_file,L"    <tag k='voltage' v='400' />\n");
+	}
+	else
+	{
+		// по умолчанию - линия:
+		fwprintf(out_file,L"    <tag k='power' v='line' />\n");
+	}
+	fwprintf(out_file,L"    <tag k='name' v='%ls' />\n",list->line_name->name);
+	fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
+	fwprintf(out_file,L"    <tag k='source' v='%ls' />\n",def_source);
+	fwprintf(out_file,L"    <tag k='source:note' v='%ls' />\n",def_source_note);
 	return 0;
 }
 
