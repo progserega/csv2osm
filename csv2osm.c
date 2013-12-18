@@ -160,6 +160,11 @@ int main(int argc, char **argv)
 	else
 	{
 		out_file=fopen(out_file_name,"w");
+		if(out_file==NULL)
+		{
+			fprintf(stderr, "\nerror open file %s (%s)",out_file_name,strerror(errno));
+			return -1;
+		}
 	}
 	do{
 		error=fgetws(buf, BUFSIZ, in_file);
