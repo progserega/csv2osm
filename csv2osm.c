@@ -762,7 +762,7 @@ int print_first_point(struct pointList *list, wchar_t *prefix, int prefix_size)
 	 начальная точка - это опора с именем, равным префиксу.
 	*/
 	tmp_name=(wchar_t*)malloc(
-		(prefix_size)*sizeof(wchar_t)
+		(prefix_size+1)*sizeof(wchar_t)
 	);
 	if(!tmp_name)
 	{
