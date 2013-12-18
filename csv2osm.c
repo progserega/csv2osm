@@ -802,7 +802,7 @@ int prepare_line_list(struct pointList *list)
 			fwprintf(stderr,L"%s:%i: empty poi_name!\n",__FILE__,__LINE__);
 			return -1;
 		}
-		if(iswalnum(*(list->poi_name+len-1)))
+		if(iswdigit(*(list->poi_name+len-1)))
 		{
 			// число
 			list->poi_index_type=POI_INDEX_NUM;
@@ -810,7 +810,7 @@ int prepare_line_list(struct pointList *list)
 			// ищем первый нецифровой символ с конца:
 			for(index=len-1;index>=0;index--)
 			{
-				if(!iswalnum(*(list->poi_name+index)))
+				if(!iswdigit(*(list->poi_name+index)))
 				{
 					// не число
 					break;
@@ -825,7 +825,7 @@ int prepare_line_list(struct pointList *list)
 			// ищем первый нецифровой символ с конца:
 			for(index=len-1;index>=0;index--)
 			{
-				if(iswalnum(*(list->poi_name+index)))
+				if(iswdigit(*(list->poi_name+index)))
 				{
 					// число
 					break;
