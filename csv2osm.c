@@ -267,6 +267,8 @@ int main(int argc, char **argv)
 			free_nameList(lineNameList);
 			return -1;
 		}
+		if(line_name)free(line_name);
+		if(poi_name)free(poi_name);
 	}while(error!=NULL);
 	if(in_file_name!=NULL)
 		fclose(in_file);
