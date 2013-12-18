@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 		// type
 		tmp=get_next_value(buf, &dst, &len_dst, L';');
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 3: %ls\n",__FILE__,__LINE__,dst);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 1: %ls\n",__FILE__,__LINE__,dst);
 #endif
 
 		if(!wcscmp(dst,L"station"))
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
 		// Имя линии
 		tmp=get_next_value(tmp, &line_name, &len_dst, L';');
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 1: %ls\n",__FILE__,__LINE__,dst);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 2: %ls\n",__FILE__,__LINE__,line_name);
 #endif
 		// Предполагаем напряжение по имени:
 		if(!wc_cmp(line_name,L"ВЛ 0,4"))
@@ -231,13 +231,13 @@ int main(int argc, char **argv)
 		// Имя точки
 		tmp=get_next_value(tmp, &poi_name, &len_dst, L';');
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 2: %ls\n",__FILE__,__LINE__,dst);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 3: %ls\n",__FILE__,__LINE__,poi_name);
 #endif
 
 		// lat
 		tmp=get_next_value(tmp, &dst, &len_dst, L';');
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 3: %ls\n",__FILE__,__LINE__,dst);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 4: %ls\n",__FILE__,__LINE__,dst);
 #endif
 		swscanf(dst,L"%Lf",&lat);
 		free(dst);
@@ -246,8 +246,7 @@ int main(int argc, char **argv)
 		tmp=get_next_value(tmp, &dst, &len_dst, L';');
 		swscanf(dst,L"%Lf",&lon);
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 4: %ls, полученное значение: %Lf\n",__FILE__,__LINE__,dst,lon);
-		fprintf(stderr,"%s:%i: полученное значение: %Lf\n",__FILE__,__LINE__,lon);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 5: %ls, полученное значение: %Lf\n",__FILE__,__LINE__,dst,lon);
 #endif
 		free(dst);
 
@@ -255,7 +254,7 @@ int main(int argc, char **argv)
 		tmp=get_next_value(tmp, &dst, &len_dst, L';');
 		swscanf(dst,L"%f",&ele);
 #ifdef DEBUG
-		fwprintf(stderr,L"%s:%i: Значение ячейки 5: %ls, полученное значение: %f\n",__FILE__,__LINE__,dst,ele);
+		fwprintf(stderr,L"%s:%i: Значение ячейки 6: %ls, полученное значение: %f\n",__FILE__,__LINE__,dst,ele);
 #endif
 		free(dst);
 
