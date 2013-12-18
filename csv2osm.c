@@ -278,21 +278,27 @@ int main(int argc, char **argv)
 // Получаем следующее значение:
 wchar_t *get_next_value(wchar_t *src_str, wchar_t **dst_ptr, int *len_dst, wchar_t delimiter)
 {
-	wchar_t *pch;
-	int count;
+	wchar_t *pch=0;
+	int begin_index=0;
+	int count=0;
+
+	// пропуск пробелов в начале слова:
+    for(pch = src_str, count = 0; *pch == L' ' && count<wcslen(src_str)-1; pch++, count++);
+	begin_index=count;
+
     for(pch = src_str, count = 0; *pch != delimiter && count<wcslen(src_str)-1; pch++, count++);
 #ifdef DEBUG
 	fwprintf(stderr,L"%s:%i: длинна слова: %i utf-символов (длинна переданной строки: %i)\n",__FILE__,__LINE__,count,wcslen(src_str)-1);
 #endif
-	*len_dst=(count+1)*sizeof(wchar_t);
+	*len_dst=(count+1-begin_index)*sizeof(wchar_t);
 	*dst_ptr=(wchar_t*)malloc(*len_dst);
 	if(!*dst_ptr)
 	{
 		fwprintf(stderr,L"%s:%i: ERROR malloc(%i)\n",__FILE__,__LINE__,*len_dst);
 		return NULL;
 	}
-	wcpncpy(*dst_ptr,src_str,count);
-	*(*dst_ptr+count)=L'\0';
+	wcpncpy(*dst_ptr,src_str+begin_index,count-begin_index);
+	*(*dst_ptr+count-begin_index)=L'\0';
 	return ++pch;
 }
 
