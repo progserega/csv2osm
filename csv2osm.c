@@ -262,6 +262,8 @@ int main(int argc, char **argv)
 		{
 			fwprintf(stderr,L"%s:%i: error add_element()\n",__FILE__,__LINE__);
 			// очистка памяти:
+			if(out_file_name!=NULL)
+				fclose(out_file);
 			free_posList(posList);
 			free_nameList(lineNameList);
 			return -1;
@@ -272,7 +274,16 @@ int main(int argc, char **argv)
 	if(in_file_name!=NULL)
 		fclose(in_file);
 	// Выводим OSM:
-	print_osm();
+	if(print_osm()==-1)
+	{
+		fwprintf(stderr,L"%s:%i: error print_osm()\n",__FILE__,__LINE__);
+		// очистка памяти:
+		if(out_file_name!=NULL)
+			fclose(out_file);
+		free_posList(posList);
+		free_nameList(lineNameList);
+		return -1;
+	}
 	if(out_file_name!=NULL)
 		fclose(out_file);
 	// очистка памяти:
