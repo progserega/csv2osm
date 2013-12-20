@@ -771,16 +771,18 @@ struct pointList* line_have_two_or_more_points(struct pointList *list, wchar_t *
 	int num_points=0;
 	struct pointList *point1=0, *point2=0;
 
-	/* пробуем найти точку, к которой присоединяется данная линия (с указанным
-	 * префиксом)
-	 */
-	point1=get_first_point(list,prefix,prefix_size);
-	if(point1==-1)
+	if(prefix_size)
 	{
-		fwprintf(stderr,L"%s:%i: ERROR get_first_point()\n",__FILE__,__LINE__);
-		return -1;
-	}else if(point1)num_points++;
-
+		/* пробуем найти точку, к которой присоединяется данная линия (с указанным
+		 * префиксом)
+		 */
+		point1=get_first_point(list,prefix,prefix_size);
+		if(point1==-1)
+		{
+			fwprintf(stderr,L"%s:%i: ERROR get_first_point()\n",__FILE__,__LINE__);
+			return -1;
+		}else if(point1)num_points++;
+	}
 	/* пробуем найти первую точку с указанным префиксом 
 	 */
 	point1=get_way_point(list, prefix, prefix_size);
