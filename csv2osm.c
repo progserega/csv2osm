@@ -647,7 +647,7 @@ int print_line_by_prefix(struct pointList *list, int prefix_size)
 				fwprintf(stderr,L"%s:%i: Обрабатываем линию с префиксом: %ls, тип: %i\n",__FILE__,__LINE__,prefix, index_type);
 #endif
 				/* проверяем, если точек в линии больше 1, то рисуем линию: */
-				if(!line_have_two_or_more_points(list,prefix,prefix_size))
+				if(!line_have_two_or_more_points(first_element,prefix,prefix_size))
 				{
 #ifdef DEBUG
 					fwprintf(stderr,L"%s:%i: пропускаем линию с менее чем 2-мя точками (poi_name=%ls, prefix=%ls)\n",__FILE__,__LINE__,list->poi_name,prefix);
