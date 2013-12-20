@@ -86,6 +86,9 @@ struct pointList *get_nearest(struct pointList *list, struct pointList *element)
 struct pointList *find_lightest_number_name(struct pointList *list);
 struct pointList *find_lightest_symbol_index_name_with_prefix(struct pointList *list, wchar_t *prefix_to_find);
 struct pointList *find_lightest_number_name_with_prefix(struct pointList *list, wchar_t *prefix_to_find);
+struct pointList *get_first_point(struct pointList *list, wchar_t *prefix, int prefix_size);
+struct pointList *get_way_point(struct pointList *list, wchar_t *prefix, int prefix_size);
+struct pointList* line_have_two_or_more_points(struct pointList *list, wchar_t *prefix, int prefix_size);
 wchar_t* skip_zero(wchar_t*str);
 int wc_cmp(wchar_t *s1, wchar_t *s2);
 int process_command_options(int argc, char **argv);
@@ -270,7 +273,7 @@ int main(int argc, char **argv)
 		}
 		if(line_name)free(line_name);
 		if(poi_name)free(poi_name);
-	}while(error!=NULL);
+	}while(error!=0);
 	if(in_file_name!=NULL)
 		fclose(in_file);
 	// Выводим OSM:
@@ -643,6 +646,15 @@ int print_line_by_prefix(struct pointList *list, int prefix_size)
 #ifdef DEBUG
 				fwprintf(stderr,L"%s:%i: Обрабатываем линию с префиксом: %ls, тип: %i\n",__FILE__,__LINE__,prefix, index_type);
 #endif
+				/* проверяем, если точек в линии больше 1, то рисуем линию: */
+				if(!line_have_two_or_more_points(list,prefix,prefix_size))
+				{
+#ifdef DEBUG
+					fwprintf(stderr,L"%s:%i: пропускаем линию с менее чем 2-мя точками (poi_name=%ls, prefix=%ls)\n",__FILE__,__LINE__,list->poi_name,prefix);
+#endif
+					list=list->next_element;
+					continue;
+				}
 				// рисуем линию с этим префиксом:
 				fwprintf(out_file,L"  <way id='%i' action='modify' visible='true'>\n",cur_global_id);
 				cur_global_id--;
@@ -651,8 +663,8 @@ int print_line_by_prefix(struct pointList *list, int prefix_size)
 				// только для линий с префиксом:
 				if(prefix_size)
 				{
-					tmp=get_first_point(first_element, prefix, prefix_size)
-					if(tmp==-1)
+					tmp=get_first_point(first_element, prefix, prefix_size);
+					if((int)tmp==-1)
 					{
 						fwprintf(stderr,L"%s:%i: error get_first_point()\n",__FILE__,__LINE__);
 						return -1;
@@ -668,7 +680,7 @@ int print_line_by_prefix(struct pointList *list, int prefix_size)
 					оборы с таким префиксом 
 					*/
 					tmp=get_way_point(list, prefix, prefix_size);
-					if(tmp==-1)
+					if((int)tmp==-1)
 					{
 						fwprintf(stderr,L"%s:%i: error get_way_point()\n",__FILE__,__LINE__);
 						return -1;
@@ -724,7 +736,7 @@ int print_way_tags(struct pointList *list)
 	return 0;
 }
 
-struct pointList* get_way_point(struct pointList *list, wchar_t *prefix, int prefix_size)
+struct pointList *get_way_point(struct pointList *list, wchar_t *prefix, int prefix_size)
 {
 
 		struct pointList *tmp=0;
@@ -750,7 +762,71 @@ struct pointList* get_way_point(struct pointList *list, wchar_t *prefix, int pre
 		return 0;
 }
 
-struct pointList* get_first_point(struct pointList *list, wchar_t *prefix, int prefix_size)
+/* Проверка, содержит ли линия с таким префиксом более чем одну точку.
+ * Если не содержит, то линию рисовать нельзя - JOSM сообщит об ошибке - 
+ * не может быть линии из одной точки
+ */
+struct pointList* line_have_two_or_more_points(struct pointList *list, wchar_t *prefix, int prefix_size)
+{
+	int num_points=0;
+	struct pointList *point1=0, *point2=0;
+
+	/* пробуем найти точку, к которой присоединяется данная линия (с указанным
+	 * префиксом)
+	 */
+	point1=get_first_point(list,prefix,prefix_size);
+	if(point1==-1)
+	{
+		fwprintf(stderr,L"%s:%i: ERROR get_first_point()\n",__FILE__,__LINE__);
+		return -1;
+	}else if(point1)num_points++;
+
+	/* пробуем найти первую точку с указанным префиксом 
+	 */
+	point1=get_way_point(list, prefix, prefix_size);
+	if(point1==-1)
+	{
+		fwprintf(stderr,L"%s:%i: error get_way_point()\n",__FILE__,__LINE__);
+		return -1;
+	}
+	else if(point1)
+	{
+		num_points++;
+		/* если нашли достаточно точек
+		 */
+		if(num_points>1)return 1;
+		else
+		{
+			/* пробуем искать вторую точку, для чего временно исключаем первую из списка:
+			 */
+			point1->link=1;
+		}
+	}
+	else
+	{
+		/* не нашли точки с этим префиксом */
+		return 0;
+	}
+	/* пробуем найти вторую точку с тем же префиксом */
+	point2=get_way_point(list, prefix, prefix_size);
+	if(point2==-1)
+	{
+		fwprintf(stderr,L"%s:%i: error get_way_point()\n",__FILE__,__LINE__);
+		return -1;
+	}
+	else if(point2)
+	{
+		num_points++;
+	}
+	/* освобождаем первую точку линии
+	 */
+	if(point1)point1->link=0;
+
+	if(num_points>1)return 1;
+	else return 0;
+}
+
+struct pointList *get_first_point(struct pointList *list, wchar_t *prefix, int prefix_size)
 {
 	wchar_t *tmp_name=0;
 	/* ищем начальную точку
