@@ -476,6 +476,8 @@ int print_osm(void)
 					fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
 					fwprintf(out_file,L"    <tag k='power' v='tower' />\n");
 					fwprintf(out_file,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
+					if(element->voltage!=-1)
+						fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",element->voltage);
 				}
 				else if((*posList_last)->poi_type==TYPE_POWER_LINE_04)
 				{
@@ -484,6 +486,8 @@ int print_osm(void)
 					fwprintf(out_file,L"    <tag k='operator' v='%ls' />\n",def_operator);
 					fwprintf(out_file,L"    <tag k='power' v='pole' />\n");
 					fwprintf(out_file,L"    <tag k='note' v='%ls' />\n",element->line_name->name);
+					if(element->voltage!=-1)
+						fwprintf(out_file,L"    <tag k='voltage' v='%i' />\n",element->voltage);
 				}
 				else if((*posList_last)->poi_type==TYPE_POWER_SUB_STATION)
 				{
