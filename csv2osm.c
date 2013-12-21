@@ -182,6 +182,7 @@ int main(int argc, char **argv)
 #endif
 			continue;
 		}
+		if(!error)break;
 		// type
 		tmp=get_next_value(buf, &dst, &len_dst, L';');
 #ifdef DEBUG
