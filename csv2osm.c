@@ -107,7 +107,7 @@ int voltage=-1;
 int prefix_size_max=0;
 
 // Дополнительные теги по-умолчанию:
-wchar_t def_operator[]=L"ОАО ДРСК";
+wchar_t def_operator[]=L"АО ДРСК";
 wchar_t def_source[]=L"survey";
 wchar_t def_source_note[]=L"импортировано с помощью gpx2ocs->ocs2osm на основании gpx-точек обходов линий"; 
 
